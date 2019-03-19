@@ -1,25 +1,180 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Reproducible Research
+=====================
+#Week 2 Project assignment
+
+Used Packages
+
+```{r library_load , results="hide"}
+library(dplyr)
+library(ggplot2)
+```
+
+###Read data
+
+```{r ReadData}
+url_file <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(url_file, destfile=".\\Activity.zip")
+unzip(".\\Activity.zip","activity.csv")
+ds_act <- read.csv2(".\\activity.csv", header=TRUE, sep=",", na.strings="NA")
+```
+
+###Data process/transformation
+
+Conversion of date column to date
+
+```{r Data elaboration}
+ds_act$date=as.Date(ds_act$date,"%Y-%m-%d")
+```
+
+Here's the final dataset structure
+
+```{r}
+str(ds_act)
+```
+
+###Calculation and rapresentation of total, mean and median number of steps taken per day
 
 
-## Loading and preprocessing the data
+Calculation of total, mean and median of steps per day
+
+```{r}
+info_steps_per_day <- ds_act %>% group_by(date) %>% summarize(total_steps = sum(steps, na.rm=TRUE), mean_steps = mean(steps, na.rm=TRUE), median_steps = median(steps, na.rm=TRUE))
+
+```
+
+####Total steps per day graph
+
+```{r}
+g <- ggplot(info_steps_per_day, aes(x = date, y = total_steps)) + geom_line()
+g <- g + labs(x="Date", y="Total Steps", title = "Total Steps per Day")
+g
+```
+
+####Graph of Mean of the steps per day
+
+```{r}
+g <- ggplot(info_steps_per_day, aes(x = date, y = mean_steps)) + geom_line(na.rm=TRUE)
+g <- g + labs(x="Date", y="Steps Mean", title = "Mean of Steps per Day")
+g
+```
+
+The missing values in the graph refer to days where all values are "NA"
+
+####Graph of Median of the steps per day
+```{r}
+g <- ggplot(info_steps_per_day, aes(x = date, y = median_steps)) + geom_line(na.rm=TRUE)
+g <- g + labs(x="Date", y="Steps Median", title = "Median of Steps per Day")
+g
+```
+
+The missing values in the graph refer to days where all values are "NA".
+
+In all the graph, all the values related to Median are equal to zero. 
+
+The reason is that more than the 50% of values are equal to zero for each of that days .
+
+###Calculation and rapresentation of average daily activity pattern
+
+Calculation of total, mean and median of steps per day
+
+```{r}
+info_5_min_interval <- ds_act %>% group_by(interval) %>% summarize(mean_steps = mean(steps, na.rm=TRUE))
+summary(info_5_min_interval)
+```
+
+####Graph of Mean of the steps per 5-minutes interval
+
+```{r}
+g <- ggplot(info_5_min_interval, aes(x = interval, y = mean_steps)) + geom_line(na.rm=TRUE)
+g <- g + labs(x="5-minutes Interval", y="Steps Mean", title = "Mean of Steps per 5-minutes Interval")
+g
+```
+
+Code for calculating hour and minutes related to the 5-minutes interval with max steps number
+```{r}
+max_interval <- info_5_min_interval[which.max(info_5_min_interval$mean_steps),"interval"]
+hour_max_interval <- max_interval %/% 100
+minutes_max_interval <- max_interval %% 100
+```
+
+The 5-minute interval that, on average, contains the maximum number of steps starts at `r hour_max_interval`:`r minutes_max_interval` a.m.
+
+###Strategy for imputing missing data
+
+The adopted strategy for imputing missing data is to use the mean for that 5-minute interval, etc.
+
+```{r}
+ds_act_new <- ds_act
+ds_act_new$steps[is.na(ds_act$steps) & info_5_min_interval$interval == ds_act$interval ] <- info_5_min_interval$mean_steps
+head(ds_act)
+head(ds_act_new)
+```
 
 
+Calculation of mean and median of steps per day after imputing missing data
 
-## What is mean total number of steps taken per day?
+```{r}
+info_steps_per_day_mna <- ds_act_new %>% group_by(date) %>% summarize(total_steps = sum(steps, na.rm=TRUE), mean_steps = mean(steps, na.rm=TRUE), median_steps = median(steps, na.rm=TRUE))
+```
+
+####Total steps per day graph after imputing missing data
+
+```{r}
+g <- ggplot(info_steps_per_day_mna, aes(x = date, y = total_steps)) + geom_line(na.rm=TRUE)
+g <- g + labs(x="Date", y="Total Steps", title = "Total Steps per Day")
+g
+```
+
+####Graph of Mean of the steps per day after imputing missing data
+
+```{r}
+g <- ggplot(info_steps_per_day_mna, aes(x = date, y = mean_steps)) + geom_line(na.rm=TRUE)
+g <- g + labs(x="Date", y="Steps Mean", title = "Mean of Steps per Day")
+g
+```
+
+The missing values in the graph refer to days where all values are "NA"
+
+####Graph of Median of the steps per day after imputing missing data
+```{r}
+g <- ggplot(info_steps_per_day_mna, aes(x = date, y = median_steps)) + geom_line(na.rm=TRUE)
+g <- g + labs(x="Date", y="Steps Median", title = "Median of Steps per Day")
+g
+```
+
+####Analysis avout Value differences from original dataset and dataset with imputed missing data
+
+```{r}
+na_date_list <- unique(ds_act$date[is.na(ds_act$steps)])
+not_na_date_list <- unique(ds_act$date[!is.na(ds_act$steps)])
+intersection_list_len <- length(intersect(not_na_date_list,na_date_list))
+intersection_list_len
+```
+
+In the initial dataset a day has either all 5-minutes interval equal to NA ('NA days') or all 5-minutes interval dfferent NA ('not NA days').
+Infact the interscection between the list of dates with NA velues and dates with no NA values sa a `r intersection_list_len` lenght list.
+
+Due to this fact the mean and median of total number of steps taken per day values differ from original dataset and imputed missing dataset only in the 'NA days'.
+
+Referring to the questions in submission section referred to this part.
+
+*Q - Do mean and media values differ from the estimates from the first part of the assignment? *
+
+**A - Yes, the difference is affects only the 'NA days'. After the imputing of missing data, the mean value for these days is the mean of the means of 5-minute intervals, the median value for these days is the median of the means of 5-minute intervals.**
 
 
+*Q - What is the impact of imputing missing data on the estimates of the total daily number of steps?*
 
-## What is the average daily activity pattern?
+**A- The 'not na days' are not affected, the 'NA days' are affected, and thie value is the sum of the means of 5-minute intervals.**
 
+###Differences in activity patterns between weekdays and weekends
 
+```{r}
+ds_act$weekend <- as.factor(ifelse(weekdays(ds_act$date) %in% c("sabato", "domenica"),"weekend","weekday"))
+info_5_min_interval_weekend <- ds_act %>% group_by(interval,weekend) %>% summarize(mean_steps = mean(steps, na.rm=TRUE))
+summary(info_5_min_interval_weekend)
+g <- ggplot(info_5_min_interval_weekend, aes(x = interval, y = mean_steps)) + facet_wrap(. ~ weekend, nrow=2, ncol=1) + geom_line()
+g <- g + labs(x="5-minute interval", y="Steps Mean", title = "Steps Mean - Weekend vs. Weekday")
+g
+```
 
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
